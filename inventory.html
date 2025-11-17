@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management - Meraki Sipside</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="inventory.js" defer></script>
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <h1>☕ Meraki Sipside - Inventory</h1>
+            </div>
+            <nav>
+                <a href="index.html" class="nav-link">Home</a>
+                <a href="menu.html" class="nav-link">Menu</a>
+                <a href="inventory.html" class="nav-link active">Inventory</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="inventory-container">
+        <!-- Dashboard Section -->
+        <section class="dashboard">
+            <h2>Inventory Dashboard</h2>
+            <div class="dashboard-cards">
+                <div class="dashboard-card">
+                    <div class="card-icon">📦</div>
+                    <div class="card-content">
+                        <h3 id="total-products">0</h3>
+                        <p>Total Products</p>
+                    </div>
+                </div>
+                <div class="dashboard-card">
+                    <div class="card-icon">✅</div>
+                    <div class="card-content">
+                        <h3 id="in-stock-products">0</h3>
+                        <p>In Stock</p>
+                    </div>
+                </div>
+                <div class="dashboard-card alert">
+                    <div class="card-icon">⚠️</div>
+                    <div class="card-content">
+                        <h3 id="low-stock-products">0</h3>
+                        <p>Low Stock</p>
+                    </div>
+                </div>
+                <div class="dashboard-card danger">
+                    <div class="card-icon">❌</div>
+                    <div class="card-content">
+                        <h3 id="out-of-stock-products">0</h3>
+                        <p>Out of Stock</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Controls Section -->
+        <section class="controls">
+            <div class="controls-left">
+                <button id="btn-add-product" class="btn btn-primary">➕ Add New Product</button>
+                <button id="btn-export-data" class="btn btn-secondary">📥 Export Data</button>
+                <button id="btn-import-data" class="btn btn-secondary">📤 Import Data</button>
+                <button id="btn-reset-data" class="btn btn-danger">🔄 Reset to Default</button>
+            </div>
+            <div class="controls-right">
+                <input type="text" id="search-inventory" placeholder="🔍 Search products..." class="search-input">
+                <select id="filter-category" class="filter-select">
+                    <option value="all">All Categories</option>
+                    <option value="Milktea">Milktea</option>
+                    <option value="Iced Coffee">Iced Coffee</option>
+                    <option value="Cheesecake">Cheesecake</option>
+                    <option value="Fruit Tea">Fruit Tea</option>
+                    <option value="Soda">Soda</option>
+                    <option value="Frappe">Frappe</option>
+                    <option value="Snacks">Snacks</option>
+                    <option value="Fries">Fries</option>
+                </select>
+                <select id="filter-stock" class="filter-select">
+                    <option value="all">All Stock Levels</option>
+                    <option value="in-stock">In Stock</option>
+                    <option value="low-stock">Low Stock</option>
+                    <option value="out-of-stock">Out of Stock</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- Inventory Table Section -->
+        <section class="inventory-section">
+            <h2>Product Inventory</h2>
+            <div class="table-container">
+                <table id="inventory-table" class="inventory-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Product Name</th>
+                            <th>Category</th>
+                            <th>Price(s)</th>
+                            <th>Stock</th>
+                            <th>Status</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-tbody">
+                        <!-- Rows will be dynamically generated -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Add/Edit Product Modal -->
+        <div id="product-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modal-title">Add New Product</h2>
+                    <button class="modal-close" id="modal-close">&times;</button>
+                </div>
+                <form id="product-form" class="product-form">
+                    <input type="hidden" id="form-product-id">
+                    
+                    <div class="form-group">
+                        <label for="form-product-name">Product Name *</label>
+                        <input type="text" id="form-product-name" required placeholder="e.g., Bubble Tea">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-product-category">Category *</label>
+                        <select id="form-product-category" required>
+                            <option value="">Select Category</option>
+                            <option value="Milktea">Milktea</option>
+                            <option value="Iced Coffee">Iced Coffee</option>
+                            <option value="Cheesecake">Cheesecake</option>
+                            <option value="Fruit Tea">Fruit Tea</option>
+                            <option value="Soda">Soda</option>
+                            <option value="Frappe">Frappe</option>
+                            <option value="Snacks">Snacks</option>
+                            <option value="Fries">Fries</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-product-description">Description</label>
+                        <textarea id="form-product-description" rows="3" placeholder="Product description..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="form-has-sizes"> 
+                            Product has multiple sizes
+                        </label>
+                    </div>
+
+                    <!-- Single Price -->
+                    <div id="single-price-section" class="form-group">
+                        <label for="form-product-price">Price (₱) *</label>
+                        <input type="number" id="form-product-price" min="0" step="0.01" placeholder="49.00">
+                    </div>
+
+                    <!-- Multiple Sizes/Prices -->
+                    <div id="sizes-section" style="display: none;">
+                        <div class="form-group">
+                            <label>Size Variants and Prices</label>
+                            <div id="sizes-container">
+                                <!-- Size inputs will be added dynamically -->
+                            </div>
+                            <button type="button" id="btn-add-size" class="btn btn-small">+ Add Size</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-product-stock">Stock Quantity *</label>
+                        <input type="number" id="form-product-stock" min="0" required placeholder="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-product-low-stock">Low Stock Threshold</label>
+                        <input type="number" id="form-product-low-stock" min="0" value="10" placeholder="10">
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="btn-cancel-form">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Product</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Stock Alert Section -->
+        <section class="alerts-section">
+            <h2>Stock Alerts</h2>
+            <div id="alerts-container" class="alerts-container">
+                <!-- Alerts will be dynamically generated -->
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Meraki Sipside. All rights reserved.</p>
+    </footer>
+</body>
+</html>
