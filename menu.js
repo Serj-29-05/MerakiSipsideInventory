@@ -65,13 +65,14 @@ function renderMenuItems(items) {
 
         // Format price display
         let priceDisplay = '';
-        if (item.prices) {
-            const priceList = Object.entries(item.prices)
-                .map(([size, price]) => `${size}: ₱${price}`)
+        const sellingPrices = item.sellingPrices || item.prices;
+        if (sellingPrices && typeof sellingPrices === 'object') {
+            const priceList = Object.entries(sellingPrices)
+                .map(([size, price]) => `${size}: ₱${formatPriceValue(price)}`)
                 .join(' | ');
             priceDisplay = priceList;
         } else {
-            priceDisplay = `₱${item.price}`;
+            priceDisplay = `₱${formatPriceValue(item.price)}`;
         }
 
         // Determine stock status
@@ -118,3 +119,11 @@ window.addEventListener('storage', (e) => {
         loadMenu();
     }
 });
+
+function formatPriceValue(value) {
+    const numeric = parseFloat(value);
+    if (isNaN(numeric)) {
+        return '0.00';
+    }
+    return numeric.toFixed(2);
+}

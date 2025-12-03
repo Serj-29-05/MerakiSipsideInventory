@@ -11,7 +11,8 @@
     <header>
         <div class="header-container">
             <div class="logo">
-                <h1>☕ Meraki Sipside - Inventory</h1>
+                <img src="meraki.png" alt="Meraki Sipside logo" class="logo-mark" />
+                <h1>Meraki Sipside - Inventory</h1>
             </div>
             <nav>
                 <a href="index.html" class="nav-link">Home</a>
@@ -63,7 +64,6 @@
                 <button id="btn-add-product" class="btn btn-primary">➕ Add New Product</button>
                 <button id="btn-export-data" class="btn btn-secondary">📥 Export Data</button>
                 <button id="btn-import-data" class="btn btn-secondary">📤 Import Data</button>
-                <button id="btn-reset-data" class="btn btn-danger">🔄 Reset to Default</button>
             </div>
             <div class="controls-right">
                 <input type="text" id="search-inventory" placeholder="🔍 Search products..." class="search-input">
@@ -90,6 +90,15 @@
         <!-- Inventory Table Section -->
         <section class="inventory-section">
             <h2>Product Inventory</h2>
+
+            <!-- Stock Alert Section -->
+            <section class="alerts-section">
+                <h2>Stock Alerts</h2>
+                <div id="alerts-container" class="alerts-container">
+                    <!-- Alerts will be dynamically generated -->
+                </div>
+            </section>
+
             <div class="table-container">
                 <table id="inventory-table" class="inventory-table">
                     <thead>
@@ -97,7 +106,7 @@
                             <th>ID</th>
                             <th>Product Name</th>
                             <th>Category</th>
-                            <th>Price(s)</th>
+                            <th>Ingredient Cost</th>
                             <th>Stock</th>
                             <th>Status</th>
                             <th>Last Updated</th>
@@ -147,27 +156,8 @@
                     </div>
 
                     <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="form-has-sizes"> 
-                            Product has multiple sizes
-                        </label>
-                    </div>
-
-                    <!-- Single Price -->
-                    <div id="single-price-section" class="form-group">
-                        <label for="form-product-price">Price (₱) *</label>
-                        <input type="number" id="form-product-price" min="0" step="0.01" placeholder="49.00">
-                    </div>
-
-                    <!-- Multiple Sizes/Prices -->
-                    <div id="sizes-section" style="display: none;">
-                        <div class="form-group">
-                            <label>Size Variants and Prices</label>
-                            <div id="sizes-container">
-                                <!-- Size inputs will be added dynamically -->
-                            </div>
-                            <button type="button" id="btn-add-size" class="btn btn-small">+ Add Size</button>
-                        </div>
+                        <label for="form-product-price">Ingredient Cost (₱) *</label>
+                        <input type="number" id="form-product-price" min="0" step="0.01" required placeholder="49.00">
                     </div>
 
                     <div class="form-group">
@@ -188,13 +178,18 @@
             </div>
         </div>
 
-        <!-- Stock Alert Section -->
-        <section class="alerts-section">
-            <h2>Stock Alerts</h2>
-            <div id="alerts-container" class="alerts-container">
-                <!-- Alerts will be dynamically generated -->
+        <!-- Stock Status Modal -->
+        <div id="stock-status-modal" class="modal">
+            <div class="modal-content stock-modal-content">
+                <div class="modal-header">
+                    <h2 id="stock-modal-title">Stock Details</h2>
+                    <button class="modal-close" id="stock-modal-close">&times;</button>
+                </div>
+                <div id="stock-modal-body" class="stock-modal-body">
+                    <!-- Stock details will be injected dynamically -->
+                </div>
             </div>
-        </section>
+        </div>
 
     </main>
 

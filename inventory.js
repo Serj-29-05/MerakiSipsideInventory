@@ -7,6 +7,31 @@ const INVENTORY_HISTORY_KEY = 'meraki_inventory_history';
 let inventory = [];
 let filteredInventory = [];
 
+const DEFAULT_SELLING_PRICES = {
+    m1: { G: 39, V: 49 },
+    m2: { G: 39, V: 49 },
+    m3: { G: 39, V: 49 },
+    m4: { G: 39, V: 49 },
+    m5: { G: 39, V: 49 },
+    m6: { G: 39, V: 49 },
+    m7: { G: 39, V: 49 },
+    m8: { G: 39, V: 49 },
+    ch1: { G: 59, V: 69 },
+    ch2: { G: 59, V: 69 },
+    ch3: { G: 59, V: 69 },
+    ch4: { G: 59, V: 69 },
+    ch5: { G: 59, V: 69 },
+    s1: { G: 49, V: 59 },
+    s2: { G: 49, V: 59 },
+    s3: { G: 49, V: 59 },
+    s4: { G: 49, V: 59 },
+    s5: { G: 49, V: 59 },
+    s6: { G: 49, V: 59 },
+    fries1: { R: 45, M: 65, L: 95 },
+    fries2: { R: 45, M: 65, L: 95 },
+    fries3: { R: 45, M: 65, L: 95 }
+};
+
 // Initialize inventory on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadInventory();
@@ -14,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateDashboard();
     renderInventoryTable();
     checkStockAlerts();
+    setupDashboardInteractions();
 });
 
 // Load inventory from localStorage
@@ -22,6 +48,7 @@ function loadInventory() {
         const stored = localStorage.getItem(INVENTORY_STORAGE_KEY);
         if (stored) {
             inventory = JSON.parse(stored);
+            normalizeInventoryData();
         } else {
             // Initialize with default products
             inventory = getDefaultInventory();
@@ -38,6 +65,7 @@ function loadInventory() {
 // Save inventory to localStorage
 function saveInventory() {
     try {
+        normalizeInventoryData();
         localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
         
         // Log history entry
@@ -71,14 +99,14 @@ function logInventoryHistory(entry) {
 function getDefaultInventory() {
     return [
         // Milktea (G | V)
-        { id: 'm1', name: 'Bubble Tea', category: 'Milktea', description: 'Classic milktea with pearls', prices: { G: 39, V: 49 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
-        { id: 'm2', name: 'Cookies & Cream', category: 'Milktea', description: 'Creamy cookies flavor', prices: { G: 39, V: 49 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
-        { id: 'm3', name: 'Choco Hokkaido', category: 'Milktea', description: 'Rich chocolate flavor', prices: { G: 39, V: 49 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
-        { id: 'm4', name: 'Matcha', category: 'Milktea', description: 'Japanese green tea', prices: { G: 39, V: 49 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
-        { id: 'm5', name: 'Winter Melon', category: 'Milktea', description: 'Sweet melon flavor', prices: { G: 39, V: 49 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
-        { id: 'm6', name: 'Okinawa', category: 'Milktea', description: 'Brown sugar specialty', prices: { G: 39, V: 49 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
-        { id: 'm7', name: 'Red Velvet', category: 'Milktea', description: 'Velvety smooth', prices: { G: 39, V: 49 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
-        { id: 'm8', name: 'Chocolate', category: 'Milktea', description: 'Classic chocolate', prices: { G: 39, V: 49 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
+        { id: 'm1', name: 'Bubble Tea', category: 'Milktea', description: 'Classic milktea with pearls', price: 49, sellingPrices: { ...DEFAULT_SELLING_PRICES.m1 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
+        { id: 'm2', name: 'Cookies & Cream', category: 'Milktea', description: 'Creamy cookies flavor', price: 49, sellingPrices: { ...DEFAULT_SELLING_PRICES.m2 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
+        { id: 'm3', name: 'Choco Hokkaido', category: 'Milktea', description: 'Rich chocolate flavor', price: 49, sellingPrices: { ...DEFAULT_SELLING_PRICES.m3 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
+        { id: 'm4', name: 'Matcha', category: 'Milktea', description: 'Japanese green tea', price: 49, sellingPrices: { ...DEFAULT_SELLING_PRICES.m4 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
+        { id: 'm5', name: 'Winter Melon', category: 'Milktea', description: 'Sweet melon flavor', price: 49, sellingPrices: { ...DEFAULT_SELLING_PRICES.m5 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
+        { id: 'm6', name: 'Okinawa', category: 'Milktea', description: 'Brown sugar specialty', price: 49, sellingPrices: { ...DEFAULT_SELLING_PRICES.m6 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
+        { id: 'm7', name: 'Red Velvet', category: 'Milktea', description: 'Velvety smooth', price: 49, sellingPrices: { ...DEFAULT_SELLING_PRICES.m7 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
+        { id: 'm8', name: 'Chocolate', category: 'Milktea', description: 'Classic chocolate', price: 49, sellingPrices: { ...DEFAULT_SELLING_PRICES.m8 }, stock: 50, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
 
         // Iced Coffee
         { id: 'ic1', name: 'Spanish Latte', category: 'Iced Coffee', description: 'Creamy and sweet', price: 49, stock: 60, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
@@ -89,11 +117,11 @@ function getDefaultInventory() {
         { id: 'ic6', name: 'Hazelnut', category: 'Iced Coffee', description: 'Nutty flavor', price: 49, stock: 60, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
 
         // Cheesecake (G | V)
-        { id: 'ch1', name: 'Oreo Matcha', category: 'Cheesecake', description: 'Matcha with oreo', prices: { G: 59, V: 69 }, stock: 30, lowStockThreshold: 5, lastUpdated: new Date().toISOString() },
-        { id: 'ch2', name: 'Red Velvet', category: 'Cheesecake', description: 'Smooth red velvet', prices: { G: 59, V: 69 }, stock: 30, lowStockThreshold: 5, lastUpdated: new Date().toISOString() },
-        { id: 'ch3', name: 'Oreolicious', category: 'Cheesecake', description: 'Loaded with oreos', prices: { G: 59, V: 69 }, stock: 30, lowStockThreshold: 5, lastUpdated: new Date().toISOString() },
-        { id: 'ch4', name: 'Creamy Cheesecake', category: 'Cheesecake', description: 'Classic cheesecake', prices: { G: 59, V: 69 }, stock: 30, lowStockThreshold: 5, lastUpdated: new Date().toISOString() },
-        { id: 'ch5', name: 'Choco Delight', category: 'Cheesecake', description: 'Chocolate heaven', prices: { G: 59, V: 69 }, stock: 30, lowStockThreshold: 5, lastUpdated: new Date().toISOString() },
+        { id: 'ch1', name: 'Oreo Matcha', category: 'Cheesecake', description: 'Matcha with oreo', price: 69, sellingPrices: { ...DEFAULT_SELLING_PRICES.ch1 }, stock: 30, lowStockThreshold: 5, lastUpdated: new Date().toISOString() },
+        { id: 'ch2', name: 'Red Velvet', category: 'Cheesecake', description: 'Smooth red velvet', price: 69, sellingPrices: { ...DEFAULT_SELLING_PRICES.ch2 }, stock: 30, lowStockThreshold: 5, lastUpdated: new Date().toISOString() },
+        { id: 'ch3', name: 'Oreolicious', category: 'Cheesecake', description: 'Loaded with oreos', price: 69, sellingPrices: { ...DEFAULT_SELLING_PRICES.ch3 }, stock: 30, lowStockThreshold: 5, lastUpdated: new Date().toISOString() },
+        { id: 'ch4', name: 'Creamy Cheesecake', category: 'Cheesecake', description: 'Classic cheesecake', price: 69, sellingPrices: { ...DEFAULT_SELLING_PRICES.ch4 }, stock: 30, lowStockThreshold: 5, lastUpdated: new Date().toISOString() },
+        { id: 'ch5', name: 'Choco Delight', category: 'Cheesecake', description: 'Chocolate heaven', price: 69, sellingPrices: { ...DEFAULT_SELLING_PRICES.ch5 }, stock: 30, lowStockThreshold: 5, lastUpdated: new Date().toISOString() },
 
         // Fruit Tea
         { id: 'ft1', name: 'Lychee', category: 'Fruit Tea', description: 'Sweet lychee', price: 49, stock: 40, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
@@ -105,12 +133,12 @@ function getDefaultInventory() {
         { id: 'ft7', name: 'Passion Fruit', category: 'Fruit Tea', description: 'Tropical passion', price: 49, stock: 40, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
 
         // Soda (G | V)
-        { id: 's1', name: 'Green Sparkle', category: 'Soda', description: 'Refreshing lime soda', prices: { G: 49, V: 59 }, stock: 45, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
-        { id: 's2', name: 'Blueberry Cloud', category: 'Soda', description: 'Blueberry fizz', prices: { G: 49, V: 59 }, stock: 45, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
-        { id: 's3', name: 'Lychee Soda', category: 'Soda', description: 'Sweet lychee fizz', prices: { G: 49, V: 59 }, stock: 45, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
-        { id: 's4', name: 'Strawberry Burst', category: 'Soda', description: 'Berry explosion', prices: { G: 49, V: 59 }, stock: 45, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
-        { id: 's5', name: 'Blue Lagoon', category: 'Soda', description: 'Blue curacao', prices: { G: 49, V: 59 }, stock: 45, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
-        { id: 's6', name: 'Sparkling Apple', category: 'Soda', description: 'Apple fizz', prices: { G: 49, V: 59 }, stock: 45, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
+        { id: 's1', name: 'Green Sparkle', category: 'Soda', description: 'Refreshing lime soda', price: 59, sellingPrices: { ...DEFAULT_SELLING_PRICES.s1 }, stock: 45, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
+        { id: 's2', name: 'Blueberry Cloud', category: 'Soda', description: 'Blueberry fizz', price: 59, sellingPrices: { ...DEFAULT_SELLING_PRICES.s2 }, stock: 45, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
+        { id: 's3', name: 'Lychee Soda', category: 'Soda', description: 'Sweet lychee fizz', price: 59, sellingPrices: { ...DEFAULT_SELLING_PRICES.s3 }, stock: 45, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
+        { id: 's4', name: 'Strawberry Burst', category: 'Soda', description: 'Berry explosion', price: 59, sellingPrices: { ...DEFAULT_SELLING_PRICES.s4 }, stock: 45, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
+        { id: 's5', name: 'Blue Lagoon', category: 'Soda', description: 'Blue curacao', price: 59, sellingPrices: { ...DEFAULT_SELLING_PRICES.s5 }, stock: 45, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
+        { id: 's6', name: 'Sparkling Apple', category: 'Soda', description: 'Apple fizz', price: 59, sellingPrices: { ...DEFAULT_SELLING_PRICES.s6 }, stock: 45, lowStockThreshold: 10, lastUpdated: new Date().toISOString() },
 
         // Frappe
         { id: 'frp1', name: 'Oreo Java Chip', category: 'Frappe', description: 'Coffee and oreo', price: 79, stock: 35, lowStockThreshold: 8, lastUpdated: new Date().toISOString() },
@@ -134,9 +162,9 @@ function getDefaultInventory() {
         { id: 'sn11', name: 'Overload Hotdog', category: 'Snacks', description: 'Fully loaded', price: 70, stock: 30, lowStockThreshold: 5, lastUpdated: new Date().toISOString() },
 
         // Fries
-        { id: 'fries1', name: 'Cheese Fries', category: 'Fries', description: 'Cheesy fries', prices: { R: 45, M: 65, L: 95 }, stock: 40, lowStockThreshold: 8, lastUpdated: new Date().toISOString() },
-        { id: 'fries2', name: 'Sour Cream Fries', category: 'Fries', description: 'With sour cream', prices: { R: 45, M: 65, L: 95 }, stock: 40, lowStockThreshold: 8, lastUpdated: new Date().toISOString() },
-        { id: 'fries3', name: 'BBQ Fries', category: 'Fries', description: 'BBQ flavored', prices: { R: 45, M: 65, L: 95 }, stock: 40, lowStockThreshold: 8, lastUpdated: new Date().toISOString() },
+        { id: 'fries1', name: 'Cheese Fries', category: 'Fries', description: 'Cheesy fries', price: 65, sellingPrices: { ...DEFAULT_SELLING_PRICES.fries1 }, stock: 40, lowStockThreshold: 8, lastUpdated: new Date().toISOString() },
+        { id: 'fries2', name: 'Sour Cream Fries', category: 'Fries', description: 'With sour cream', price: 65, sellingPrices: { ...DEFAULT_SELLING_PRICES.fries2 }, stock: 40, lowStockThreshold: 8, lastUpdated: new Date().toISOString() },
+        { id: 'fries3', name: 'BBQ Fries', category: 'Fries', description: 'BBQ flavored', price: 65, sellingPrices: { ...DEFAULT_SELLING_PRICES.fries3 }, stock: 40, lowStockThreshold: 8, lastUpdated: new Date().toISOString() },
         { id: 'fries4', name: 'Overload Cheezy', category: 'Fries', description: 'Extra cheesy', price: 75, stock: 40, lowStockThreshold: 8, lastUpdated: new Date().toISOString() }
     ];
 }
@@ -167,16 +195,33 @@ function initializeUI() {
     document.getElementById('filter-category')?.addEventListener('change', applyFilters);
     document.getElementById('filter-stock')?.addEventListener('change', applyFilters);
 
-    // Has sizes checkbox
-    document.getElementById('form-has-sizes')?.addEventListener('change', toggleSizesSection);
-
-    // Add size button
-    document.getElementById('btn-add-size')?.addEventListener('click', addSizeInput);
-
-    // Export/Import/Reset
+    // Export/Import
     document.getElementById('btn-export-data')?.addEventListener('click', exportInventory);
     document.getElementById('btn-import-data')?.addEventListener('click', importInventory);
-    document.getElementById('btn-reset-data')?.addEventListener('click', resetToDefault);
+
+    // Stock status modal close interactions
+    document.getElementById('stock-modal-close')?.addEventListener('click', closeStockStatusModal);
+    document.getElementById('stock-status-modal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'stock-status-modal') {
+            closeStockStatusModal();
+        }
+    });
+}
+
+// Attach handlers to dashboard cards for quick stock insights
+function setupDashboardInteractions() {
+    const lowStockCard = document.querySelector('.dashboard-card.alert');
+    const outOfStockCard = document.querySelector('.dashboard-card.danger');
+
+    lowStockCard?.addEventListener('click', () => {
+        const items = inventory.filter(p => p.stock > 0 && p.stock <= p.lowStockThreshold);
+        openStockStatusModal('Low Stock Products', items);
+    });
+
+    outOfStockCard?.addEventListener('click', () => {
+        const items = inventory.filter(p => p.stock === 0);
+        openStockStatusModal('Out of Stock Products', items);
+    });
 }
 
 // Update dashboard statistics
@@ -207,10 +252,9 @@ function renderInventoryTable() {
     filteredInventory.forEach(product => {
         const row = document.createElement('tr');
         row.className = getStockStatusClass(product);
+        row.dataset.productId = product.id;
 
-        const priceDisplay = product.prices 
-            ? Object.entries(product.prices).map(([size, price]) => `${size}: ₱${price}`).join(', ')
-            : `₱${product.price}`;
+        const priceValue = typeof product.price === 'number' ? product.price : 0;
 
         const statusBadge = getStatusBadge(product);
         const lastUpdated = new Date(product.lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -219,7 +263,13 @@ function renderInventoryTable() {
             <td>${product.id}</td>
             <td><strong>${product.name}</strong></td>
             <td>${product.category}</td>
-            <td>${priceDisplay}</td>
+            <td>
+                <div class="price-input-wrapper">
+                    <span class="currency-symbol">₱</span>
+                    <input type="number" min="0" step="0.01" value="${formatPriceDisplay(priceValue)}"
+                           class="price-input" data-id="${product.id}">
+                </div>
+            </td>
             <td>
                 <input type="number" min="0" value="${product.stock}" 
                        class="stock-input" data-id="${product.id}">
@@ -251,6 +301,12 @@ function renderInventoryTable() {
     tbody.querySelectorAll('.btn-delete').forEach(btn => {
         btn.addEventListener('click', (e) => {
             deleteProduct(e.target.dataset.id);
+        });
+    });
+
+    tbody.querySelectorAll('.price-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            updatePrice(e.target.dataset.id, parseFloat(e.target.value));
         });
     });
 }
@@ -320,24 +376,11 @@ function openProductModal(productId = null) {
         document.getElementById('form-product-description').value = product.description || '';
         document.getElementById('form-product-stock').value = product.stock;
         document.getElementById('form-product-low-stock').value = product.lowStockThreshold;
-
-        if (product.prices) {
-            document.getElementById('form-has-sizes').checked = true;
-            toggleSizesSection();
-            const sizesContainer = document.getElementById('sizes-container');
-            sizesContainer.innerHTML = '';
-            Object.entries(product.prices).forEach(([size, price]) => {
-                addSizeInput(size, price);
-            });
-        } else {
-            document.getElementById('form-has-sizes').checked = false;
-            document.getElementById('form-product-price').value = product.price;
-            toggleSizesSection();
-        }
+        document.getElementById('form-product-price').value =
+            typeof product.price === 'number' ? formatPriceDisplay(product.price) : '';
     } else {
         title.textContent = 'Add New Product';
         document.getElementById('form-product-id').value = '';
-        toggleSizesSection();
     }
 
     modal.style.display = 'flex';
@@ -346,40 +389,6 @@ function openProductModal(productId = null) {
 // Close product modal
 function closeProductModal() {
     document.getElementById('product-modal').style.display = 'none';
-}
-
-// Toggle sizes section
-function toggleSizesSection() {
-    const hasSizes = document.getElementById('form-has-sizes').checked;
-    const singlePriceSection = document.getElementById('single-price-section');
-    const sizesSection = document.getElementById('sizes-section');
-
-    if (hasSizes) {
-        singlePriceSection.style.display = 'none';
-        sizesSection.style.display = 'block';
-        document.getElementById('form-product-price').removeAttribute('required');
-    } else {
-        singlePriceSection.style.display = 'block';
-        sizesSection.style.display = 'none';
-        document.getElementById('form-product-price').setAttribute('required', 'required');
-    }
-}
-
-// Add size input
-function addSizeInput(size = '', price = '') {
-    const sizesContainer = document.getElementById('sizes-container');
-    const sizeDiv = document.createElement('div');
-    sizeDiv.className = 'size-input-group';
-    sizeDiv.innerHTML = `
-        <input type="text" class="size-name" placeholder="Size (e.g., G, V, R)" value="${size}" required>
-        <input type="number" class="size-price" placeholder="Price" min="0" step="0.01" value="${price}" required>
-        <button type="button" class="btn-remove-size">✖</button>
-    `;
-    sizesContainer.appendChild(sizeDiv);
-
-    sizeDiv.querySelector('.btn-remove-size').addEventListener('click', () => {
-        sizeDiv.remove();
-    });
 }
 
 // Handle product form submit
@@ -392,22 +401,10 @@ function handleProductFormSubmit(e) {
     const description = document.getElementById('form-product-description').value.trim();
     const stock = parseInt(document.getElementById('form-product-stock').value);
     const lowStockThreshold = parseInt(document.getElementById('form-product-low-stock').value);
-    const hasSizes = document.getElementById('form-has-sizes').checked;
-
-    let priceData = {};
-    
-    if (hasSizes) {
-        const sizeInputs = document.querySelectorAll('.size-input-group');
-        sizeInputs.forEach(group => {
-            const sizeName = group.querySelector('.size-name').value.trim();
-            const sizePrice = parseFloat(group.querySelector('.size-price').value);
-            if (sizeName && !isNaN(sizePrice)) {
-                priceData[sizeName] = sizePrice;
-            }
-        });
-    } else {
-        const price = parseFloat(document.getElementById('form-product-price').value);
-        priceData = { single: price };
+    const price = parseFloat(document.getElementById('form-product-price').value);
+    if (isNaN(price) || price < 0) {
+        showToast('Please enter a valid ingredient cost.');
+        return;
     }
 
     if (productId) {
@@ -421,15 +418,9 @@ function handleProductFormSubmit(e) {
                 description,
                 stock,
                 lowStockThreshold,
-                ...(hasSizes ? { prices: priceData } : { price: priceData.single }),
+                price,
                 lastUpdated: new Date().toISOString()
             };
-            
-            if (hasSizes) {
-                delete inventory[index].price;
-            } else {
-                delete inventory[index].prices;
-            }
         }
     } else {
         // Add new product
@@ -441,7 +432,7 @@ function handleProductFormSubmit(e) {
             description,
             stock,
             lowStockThreshold,
-            ...(hasSizes ? { prices: priceData } : { price: priceData.single }),
+            price,
             lastUpdated: new Date().toISOString()
         };
         inventory.push(newProduct);
@@ -530,6 +521,185 @@ function checkStockAlerts() {
     }
 }
 
+// Display focused modal listing low or out-of-stock products
+function openStockStatusModal(title, products) {
+    const modal = document.getElementById('stock-status-modal');
+    const modalTitle = document.getElementById('stock-modal-title');
+    const modalBody = document.getElementById('stock-modal-body');
+
+    if (!modal || !modalTitle || !modalBody) return;
+
+    modalTitle.textContent = title;
+    modalBody.innerHTML = '';
+
+    if (products.length === 0) {
+        const emptyState = document.createElement('p');
+        emptyState.className = 'stock-modal-empty';
+        emptyState.textContent = 'No products to display right now.';
+        modalBody.appendChild(emptyState);
+    } else {
+        products.forEach(product => {
+            const item = document.createElement('div');
+            item.className = 'stock-modal-item';
+            const statusClass = product.stock === 0 ? 'stock-modal-item--danger' : 'stock-modal-item--warning';
+            item.classList.add(statusClass);
+            item.dataset.productId = product.id;
+            item.tabIndex = 0;
+
+            item.innerHTML = `
+                <h3>${product.name}</h3>
+                <p class="stock-modal-meta">${product.category}</p>
+                <p><strong>Stock:</strong> ${product.stock}</p>
+                <p><strong>Low Stock Threshold:</strong> ${product.lowStockThreshold}</p>
+                <p><strong>Ingredient Cost:</strong> ₱${formatPriceDisplay(product.price)}</p>
+            `;
+
+            item.addEventListener('click', () => focusProductRow(product.id));
+            item.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    focusProductRow(product.id);
+                }
+            });
+
+            modalBody.appendChild(item);
+        });
+    }
+
+    modal.style.display = 'flex';
+}
+
+// Close the stock status modal
+function closeStockStatusModal() {
+    const modal = document.getElementById('stock-status-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Scroll to a product row and highlight it temporarily
+function focusProductRow(productId) {
+    const targetRow = ensureProductRowVisible(productId);
+    if (!targetRow) {
+        showToast('Product is hidden by current filters.');
+        return;
+    }
+
+    closeStockStatusModal();
+    targetRow.classList.add('highlight-focus');
+    targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    const rowReference = targetRow;
+    setTimeout(() => {
+        rowReference.classList.remove('highlight-focus');
+    }, 2000);
+}
+
+// Make sure the product row exists in the table by resetting filters if needed
+function ensureProductRowVisible(productId) {
+    let row = document.querySelector(`#inventory-tbody tr[data-product-id="${productId}"]`);
+    if (row) {
+        return row;
+    }
+
+    let filtersChanged = false;
+    const searchInput = document.getElementById('search-inventory');
+    const categorySelect = document.getElementById('filter-category');
+    const stockSelect = document.getElementById('filter-stock');
+
+    if (searchInput && searchInput.value) {
+        searchInput.value = '';
+        filtersChanged = true;
+    }
+
+    if (categorySelect && categorySelect.value !== 'all') {
+        categorySelect.value = 'all';
+        filtersChanged = true;
+    }
+
+    if (stockSelect && stockSelect.value !== 'all') {
+        stockSelect.value = 'all';
+        filtersChanged = true;
+    }
+
+    if (filtersChanged) {
+        applyFilters();
+    }
+
+    return document.querySelector(`#inventory-tbody tr[data-product-id="${productId}"]`);
+}
+
+// Update price from inline editor
+function updatePrice(productId, newPrice) {
+    if (isNaN(newPrice) || newPrice < 0) {
+        showToast('Please enter a valid price.');
+        renderInventoryTable();
+        return;
+    }
+
+    const product = inventory.find(p => p.id === productId);
+    if (!product) {
+        return;
+    }
+
+    product.price = newPrice;
+    product.lastUpdated = new Date().toISOString();
+    saveInventory();
+    updateDashboard();
+    checkStockAlerts();
+    renderInventoryTable();
+    showToast('Ingredient cost updated.');
+}
+
+// Normalize inventory items to ensure single price value
+function normalizeInventoryData() {
+    if (!Array.isArray(inventory)) {
+        inventory = [];
+        return;
+    }
+
+    inventory.forEach(item => {
+        if (item.prices && typeof item.prices === 'object') {
+            if (!item.sellingPrices) {
+                item.sellingPrices = { ...item.prices };
+            }
+            delete item.prices;
+        }
+
+        if (item.sellingPrices && typeof item.sellingPrices === 'object') {
+            Object.keys(item.sellingPrices).forEach(key => {
+                const parsed = parseFloat(item.sellingPrices[key]);
+                if (!isNaN(parsed)) {
+                    item.sellingPrices[key] = parsed;
+                }
+            });
+        }
+
+        if (!item.sellingPrices && item.id && DEFAULT_SELLING_PRICES[item.id]) {
+            item.sellingPrices = { ...DEFAULT_SELLING_PRICES[item.id] };
+        }
+
+        if (typeof item.price !== 'number' || isNaN(item.price)) {
+            let derived = NaN;
+            if (!isNaN(parseFloat(item.price))) {
+                derived = parseFloat(item.price);
+            }
+            if (isNaN(derived) && item.sellingPrices) {
+                const values = Object.values(item.sellingPrices).map(Number).filter(v => !isNaN(v));
+                derived = values.length > 0 ? values[0] : NaN;
+            }
+            item.price = !isNaN(derived) && derived >= 0 ? derived : 0;
+        }
+    });
+}
+
+function formatPriceDisplay(value) {
+    if (typeof value !== 'number' || isNaN(value)) {
+        return '0.00';
+    }
+    return value.toFixed(2);
+}
+
 // Export inventory to JSON
 function exportInventory() {
     const dataStr = JSON.stringify(inventory, null, 2);
@@ -557,7 +727,9 @@ function importInventory() {
                     const importedData = JSON.parse(event.target.result);
                     if (Array.isArray(importedData)) {
                         inventory = importedData;
+                        normalizeInventoryData();
                         saveInventory();
+                        filteredInventory = [...inventory];
                         applyFilters();
                         updateDashboard();
                         checkStockAlerts();
@@ -573,18 +745,6 @@ function importInventory() {
         }
     };
     input.click();
-}
-
-// Reset to default inventory
-function resetToDefault() {
-    if (confirm('Are you sure you want to reset to default inventory? This will delete all current data.')) {
-        inventory = getDefaultInventory();
-        saveInventory();
-        applyFilters();
-        updateDashboard();
-        checkStockAlerts();
-        showToast('Inventory reset to default!');
-    }
 }
 
 // Show toast notification
