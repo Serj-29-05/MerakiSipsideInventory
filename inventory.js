@@ -1,11 +1,11 @@
-// Meraki Sipside Inventory Management System
-// Handles product CRUD operations, stock tracking, and alerts
+// Meraki Sipside Ingredients Inventory Management System
+// Handles ingredient CRUD operations, stock tracking, and order processing
 
-const INVENTORY_STORAGE_KEY = 'meraki_inventory';
-const INVENTORY_HISTORY_KEY = 'meraki_inventory_history';
+const INVENTORY_STORAGE_KEY = 'meraki_ingredients_inventory';
+const INVENTORY_HISTORY_KEY = 'meraki_ingredients_history';
 
-let inventory = [];
-let filteredInventory = [];
+let inventory = {};
+let filteredInventory = {};
 
 const DEFAULT_SELLING_PRICES = {
     m1: { G: 39, V: 49 },
@@ -34,50 +34,47 @@ const DEFAULT_SELLING_PRICES = {
 
 // Initialize inventory on page load
 document.addEventListener('DOMContentLoaded', () => {
-    loadInventory();
+    // Initialize ingredients inventory
+    if (window.MerakiInventorySync) {
+        inventory = window.MerakiInventorySync.initializeIngredientsInventory();
+        filteredInventory = { ...inventory };
+    }
+    
     initializeUI();
     updateDashboard();
     renderInventoryTable();
     checkStockAlerts();
     setupDashboardInteractions();
+    setupOrderSync();
 });
 
 // Load inventory from localStorage
 function loadInventory() {
-    try {
-        const stored = localStorage.getItem(INVENTORY_STORAGE_KEY);
-        if (stored) {
-            inventory = JSON.parse(stored);
-            normalizeInventoryData();
-        } else {
-            // Initialize with default products
-            inventory = getDefaultInventory();
-            saveInventory();
-        }
-        filteredInventory = [...inventory];
-    } catch (e) {
-        console.error('Failed to load inventory:', e);
-        inventory = [];
-        filteredInventory = [];
+    if (!window.MerakiInventorySync) {
+        console.error('Inventory sync module not loaded');
+        return;
     }
+    
+    inventory = window.MerakiInventorySync.getIngredientsInventory();
+    filteredInventory = { ...inventory };
 }
 
 // Save inventory to localStorage
 function saveInventory() {
-    try {
-        normalizeInventoryData();
-        localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
-        
-        // Log history entry
-        const history = {
-            timestamp: new Date().toISOString(),
-            action: 'update',
-            snapshot: inventory.length
-        };
-        logInventoryHistory(history);
-    } catch (e) {
-        console.error('Failed to save inventory:', e);
+    if (!window.MerakiInventorySync) {
+        console.error('Inventory sync module not loaded');
+        return;
     }
+    
+    window.MerakiInventorySync.saveIngredientsInventory(inventory);
+    
+    // Log history entry
+    const history = {
+        timestamp: new Date().toISOString(),
+        action: 'update',
+        snapshot: Object.keys(inventory).length
+    };
+    logInventoryHistory(history);
 }
 
 // Log inventory history
@@ -214,22 +211,27 @@ function setupDashboardInteractions() {
     const outOfStockCard = document.querySelector('.dashboard-card.danger');
 
     lowStockCard?.addEventListener('click', () => {
-        const items = inventory.filter(p => p.stock > 0 && p.stock <= p.lowStockThreshold);
-        openStockStatusModal('Low Stock Products', items);
+        const items = Object.entries(inventory)
+            .filter(([key, item]) => item.stock > 0 && item.stock <= item.lowStockThreshold)
+            .map(([key, item]) => ({ id: key, ...item }));
+        openStockStatusModal('Low Stock Ingredients', items);
     });
 
     outOfStockCard?.addEventListener('click', () => {
-        const items = inventory.filter(p => p.stock === 0);
-        openStockStatusModal('Out of Stock Products', items);
+        const items = Object.entries(inventory)
+            .filter(([key, item]) => item.stock === 0)
+            .map(([key, item]) => ({ id: key, ...item }));
+        openStockStatusModal('Out of Stock Ingredients', items);
     });
 }
 
 // Update dashboard statistics
 function updateDashboard() {
-    const totalProducts = inventory.length;
-    const inStock = inventory.filter(p => p.stock > p.lowStockThreshold).length;
-    const lowStock = inventory.filter(p => p.stock > 0 && p.stock <= p.lowStockThreshold).length;
-    const outOfStock = inventory.filter(p => p.stock === 0).length;
+    const inventoryArray = Object.values(inventory);
+    const totalProducts = inventoryArray.length;
+    const inStock = inventoryArray.filter(p => p.stock > p.lowStockThreshold).length;
+    const lowStock = inventoryArray.filter(p => p.stock > 0 && p.stock <= p.lowStockThreshold).length;
+    const outOfStock = inventoryArray.filter(p => p.stock === 0).length;
 
     document.getElementById('total-products').textContent = totalProducts;
     document.getElementById('in-stock-products').textContent = inStock;
@@ -244,41 +246,41 @@ function renderInventoryTable() {
 
     tbody.innerHTML = '';
 
-    if (filteredInventory.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">No products found.</td></tr>';
+    const filteredArray = Object.entries(filteredInventory).map(([key, item]) => ({ id: key, ...item }));
+
+    if (filteredArray.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">No ingredients found.</td></tr>';
         return;
     }
 
-    filteredInventory.forEach(product => {
+    filteredArray.forEach(ingredient => {
         const row = document.createElement('tr');
-        row.className = getStockStatusClass(product);
-        row.dataset.productId = product.id;
+        row.className = getStockStatusClass(ingredient);
+        row.dataset.productId = ingredient.id;
 
-        const priceValue = typeof product.price === 'number' ? product.price : 0;
+        const stockValue = typeof ingredient.stock === 'number' ? ingredient.stock : 0;
+        const statusBadge = getStatusBadge(ingredient);
+        const lastUpdated = ingredient.lastUpdated ? 
+            new Date(ingredient.lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 
+            'N/A';
 
-        const statusBadge = getStatusBadge(product);
-        const lastUpdated = new Date(product.lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        // Determine category from ingredient id/name
+        const category = getIngredientCategory(ingredient.id);
 
         row.innerHTML = `
-            <td>${product.id}</td>
-            <td><strong>${product.name}</strong></td>
-            <td>${product.category}</td>
+            <td>${ingredient.id}</td>
+            <td><strong>${ingredient.name}</strong></td>
+            <td>${category}</td>
+            <td>${ingredient.unit || 'units'}</td>
             <td>
-                <div class="price-input-wrapper">
-                    <span class="currency-symbol">₱</span>
-                    <input type="number" min="0" step="0.01" value="${formatPriceDisplay(priceValue)}"
-                           class="price-input" data-id="${product.id}">
-                </div>
+                <input type="number" min="0" step="1" value="${stockValue}" 
+                       class="stock-input" data-id="${ingredient.id}">
             </td>
-            <td>
-                <input type="number" min="0" value="${product.stock}" 
-                       class="stock-input" data-id="${product.id}">
-            </td>
+            <td>${ingredient.lowStockThreshold || 0}</td>
             <td>${statusBadge}</td>
-            <td>${lastUpdated}</td>
             <td>
-                <button class="btn-action btn-edit" data-id="${product.id}" title="Edit">✏️</button>
-                <button class="btn-action btn-delete" data-id="${product.id}" title="Delete">🗑️</button>
+                <button class="btn-action btn-edit" data-id="${ingredient.id}" title="Edit">✏️</button>
+                <button class="btn-action btn-delete" data-id="${ingredient.id}" title="Delete">🗑️</button>
             </td>
         `;
 
@@ -311,19 +313,34 @@ function renderInventoryTable() {
     });
 }
 
+// Helper function to determine ingredient category
+function getIngredientCategory(ingredientId) {
+    const id = String(ingredientId).toLowerCase();
+    if (id.includes('base')) return 'Bases';
+    if (id.includes('powder')) return 'Powders';
+    if (id.includes('syrup')) return 'Syrups';
+    if (id.includes('milk') || id.includes('cream') || id.includes('juice')) return 'Dairy';
+    if (id.includes('pearl') || id.includes('cookie') || id.includes('sugar') || id.includes('ice')) return 'Toppings';
+    if (id.includes('puree') || id.includes('avocado') || id.includes('curacao')) return 'Fresh';
+    if (id.includes('chip') || id.includes('sauce') || id.includes('nugget') || id.includes('hotdog') || 
+        id.includes('fillet') || id.includes('wing') || id.includes('patty') || id.includes('gravy') || 
+        id.includes('siopao') || id.includes('potato') || id.includes('bun')) return 'Snack Ingredients';
+    return 'Other';
+}
+
 // Get stock status class for row styling
-function getStockStatusClass(product) {
-    if (product.stock === 0) return 'out-of-stock';
-    if (product.stock <= product.lowStockThreshold) return 'low-stock';
+function getStockStatusClass(item) {
+    if (item.stock === 0) return 'out-of-stock';
+    if (item.stock <= item.lowStockThreshold) return 'low-stock';
     return 'in-stock';
 }
 
 // Get status badge HTML
-function getStatusBadge(product) {
-    if (product.stock === 0) {
+function getStatusBadge(item) {
+    if (item.stock === 0) {
         return '<span class="badge badge-danger">Out of Stock</span>';
     }
-    if (product.stock <= product.lowStockThreshold) {
+    if (item.stock <= item.lowStockThreshold) {
         return '<span class="badge badge-warning">Low Stock</span>';
     }
     return '<span class="badge badge-success">In Stock</span>';
@@ -335,23 +352,28 @@ function applyFilters() {
     const categoryFilter = document.getElementById('filter-category')?.value || 'all';
     const stockFilter = document.getElementById('filter-stock')?.value || 'all';
 
-    filteredInventory = inventory.filter(product => {
-        const matchesSearch = product.name.toLowerCase().includes(searchTerm) ||
-                            product.id.toLowerCase().includes(searchTerm) ||
-                            product.category.toLowerCase().includes(searchTerm);
+    filteredInventory = {};
+    
+    Object.entries(inventory).forEach(([key, item]) => {
+        const category = getIngredientCategory(key);
+        
+        const matchesSearch = item.name.toLowerCase().includes(searchTerm) ||
+                            key.toLowerCase().includes(searchTerm);
 
-        const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
+        const matchesCategory = categoryFilter === 'all' || category === categoryFilter;
 
         let matchesStock = true;
         if (stockFilter === 'in-stock') {
-            matchesStock = product.stock > product.lowStockThreshold;
+            matchesStock = item.stock > item.lowStockThreshold;
         } else if (stockFilter === 'low-stock') {
-            matchesStock = product.stock > 0 && product.stock <= product.lowStockThreshold;
+            matchesStock = item.stock > 0 && item.stock <= item.lowStockThreshold;
         } else if (stockFilter === 'out-of-stock') {
-            matchesStock = product.stock === 0;
+            matchesStock = item.stock === 0;
         }
 
-        return matchesSearch && matchesCategory && matchesStock;
+        if (matchesSearch && matchesCategory && matchesStock) {
+            filteredInventory[key] = item;
+        }
     });
 
     renderInventoryTable();
@@ -395,56 +417,38 @@ function closeProductModal() {
 function handleProductFormSubmit(e) {
     e.preventDefault();
 
-    const productId = document.getElementById('form-product-id').value;
+    const ingredientId = document.getElementById('form-product-id').value;
     const name = document.getElementById('form-product-name').value.trim();
-    const category = document.getElementById('form-product-category').value;
-    const description = document.getElementById('form-product-description').value.trim();
+    const unit = document.getElementById('form-product-unit').value.trim();
     const stock = parseInt(document.getElementById('form-product-stock').value);
     const lowStockThreshold = parseInt(document.getElementById('form-product-low-stock').value);
-    const price = parseFloat(document.getElementById('form-product-price').value);
-    if (isNaN(price) || price < 0) {
-        showToast('Please enter a valid ingredient cost.');
+
+    if (!name || !unit || isNaN(stock) || isNaN(lowStockThreshold)) {
+        showToast('Please fill all required fields with valid values.');
         return;
     }
 
-    if (productId) {
-        // Update existing product
-        const index = inventory.findIndex(p => p.id === productId);
-        if (index !== -1) {
-            inventory[index] = {
-                ...inventory[index],
-                name,
-                category,
-                description,
-                stock,
-                lowStockThreshold,
-                price,
-                lastUpdated: new Date().toISOString()
-            };
-        }
-    } else {
-        // Add new product
-        const newId = generateProductId(category);
-        const newProduct = {
-            id: newId,
+    if (ingredientId && inventory[ingredientId]) {
+        // Update existing ingredient
+        inventory[ingredientId] = {
+            ...inventory[ingredientId],
             name,
-            category,
-            description,
+            unit,
             stock,
             lowStockThreshold,
-            price,
             lastUpdated: new Date().toISOString()
         };
-        inventory.push(newProduct);
+        showToast('Ingredient updated successfully!');
+    } else {
+        // Add new ingredient (if needed in future)
+        showToast('Add new ingredient feature coming soon!');
     }
 
     saveInventory();
     closeProductModal();
-    applyFilters();
     updateDashboard();
     checkStockAlerts();
-
-    showToast(productId ? 'Product updated successfully!' : 'Product added successfully!');
+    renderInventoryTable();
 }
 
 // Generate unique product ID
@@ -454,9 +458,23 @@ function generateProductId(category) {
     return `${prefix}${timestamp}`;
 }
 
-// Edit product
-function editProduct(productId) {
-    openProductModal(productId);
+// Edit ingredient
+function editProduct(ingredientId) {
+    const ingredient = inventory[ingredientId];
+    if (!ingredient) return;
+
+    const modal = document.getElementById('product-modal');
+    const title = document.getElementById('modal-title');
+    const form = document.getElementById('product-form');
+
+    title.textContent = 'Edit Ingredient';
+    document.getElementById('form-product-id').value = ingredientId;
+    document.getElementById('form-product-name').value = ingredient.name || '';
+    document.getElementById('form-product-unit').value = ingredient.unit || '';
+    document.getElementById('form-product-stock').value = ingredient.stock || 0;
+    document.getElementById('form-product-low-stock').value = ingredient.lowStockThreshold || 20;
+
+    modal.style.display = 'flex';
 }
 
 // Delete product
@@ -475,11 +493,11 @@ function deleteProduct(productId) {
 }
 
 // Update stock
-function updateStock(productId, newStock) {
-    const product = inventory.find(p => p.id === productId);
-    if (product) {
-        product.stock = newStock;
-        product.lastUpdated = new Date().toISOString();
+// Update stock for an ingredient
+function updateStock(ingredientId, newStock) {
+    if (inventory[ingredientId]) {
+        inventory[ingredientId].stock = newStock;
+        inventory[ingredientId].lastUpdated = new Date().toISOString();
         saveInventory();
         updateDashboard();
         checkStockAlerts();
@@ -487,18 +505,34 @@ function updateStock(productId, newStock) {
     }
 }
 
+// Delete an ingredient
+function deleteProduct(ingredientId) {
+    if (!confirm(`Are you sure you want to delete ${inventory[ingredientId]?.name || ingredientId}?`)) {
+        return;
+    }
+    
+    delete inventory[ingredientId];
+    delete filteredInventory[ingredientId];
+    saveInventory();
+    updateDashboard();
+    checkStockAlerts();
+    renderInventoryTable();
+    showToast('Ingredient deleted successfully');
+}
+
 // Check and display stock alerts
 function checkStockAlerts() {
     const alertsContainer = document.getElementById('alerts-container');
     if (!alertsContainer) return;
 
-    const lowStockItems = inventory.filter(p => p.stock > 0 && p.stock <= p.lowStockThreshold);
-    const outOfStockItems = inventory.filter(p => p.stock === 0);
+    const inventoryArray = Object.entries(inventory).map(([key, item]) => ({ id: key, ...item }));
+    const lowStockItems = inventoryArray.filter(p => p.stock > 0 && p.stock <= p.lowStockThreshold);
+    const outOfStockItems = inventoryArray.filter(p => p.stock === 0);
 
     alertsContainer.innerHTML = '';
 
     if (lowStockItems.length === 0 && outOfStockItems.length === 0) {
-        alertsContainer.innerHTML = '<div class="alert alert-success">✅ All products are well stocked!</div>';
+        alertsContainer.innerHTML = '<div class="alert alert-success">✅ All ingredients are well stocked!</div>';
         return;
     }
 
@@ -506,7 +540,7 @@ function checkStockAlerts() {
         outOfStockItems.forEach(item => {
             const alert = document.createElement('div');
             alert.className = 'alert alert-danger';
-            alert.innerHTML = `<strong>❌ Out of Stock:</strong> ${item.name} (${item.category})`;
+            alert.innerHTML = `<strong>❌ Out of Stock:</strong> ${item.name} (${item.unit})`;
             alertsContainer.appendChild(alert);
         });
     }
@@ -515,7 +549,7 @@ function checkStockAlerts() {
         lowStockItems.forEach(item => {
             const alert = document.createElement('div');
             alert.className = 'alert alert-warning';
-            alert.innerHTML = `<strong>⚠️ Low Stock:</strong> ${item.name} (${item.category}) - Only ${item.stock} left`;
+            alert.innerHTML = `<strong>⚠️ Low Stock:</strong> ${item.name} - ${item.stock.toFixed(2)} ${item.unit} remaining`;
             alertsContainer.appendChild(alert);
         });
     }
@@ -764,4 +798,297 @@ function showToast(message) {
     toast.style.fontWeight = '500';
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
+}
+
+// Setup order synchronization
+function setupOrderSync() {
+    const syncBtn = document.getElementById('btn-sync-orders');
+    const addIngredientBtn = document.getElementById('btn-add-ingredient');
+    
+    if (syncBtn) {
+        syncBtn.addEventListener('click', processWebsiteOrders);
+    }
+    
+    if (addIngredientBtn) {
+        addIngredientBtn.addEventListener('click', () => {
+            const ingredientKey = prompt('Enter ingredient key (e.g., chocolate_syrup):');
+            if (!ingredientKey) return;
+            
+            const name = prompt('Enter ingredient name:');
+            const unit = prompt('Enter unit (e.g., kg, liters, servings):');
+            const stock = parseInt(prompt('Enter initial stock:'));
+            const lowThreshold = parseInt(prompt('Enter low stock threshold:'));
+            
+            if (name && unit && !isNaN(stock) && !isNaN(lowThreshold)) {
+                inventory[ingredientKey] = {
+                    name,
+                    unit,
+                    stock,
+                    lowStockThreshold: lowThreshold,
+                    lastUpdated: new Date().toISOString()
+                };
+                saveInventory();
+                updateDashboard();
+                checkStockAlerts();
+                renderInventoryTable();
+                showToast('Ingredient added successfully');
+            }
+        });
+    }
+    
+    // Check for pending orders on load
+    checkPendingOrders();
+}
+
+// Check if there are pending orders
+function checkPendingOrders() {
+    const ORDERS_KEY = 'meraki_orders';
+    try {
+        const orders = JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]');
+        const pendingCount = orders.filter(o => !o.processed && o.status === 'pending_fulfillment').length;
+        
+        if (pendingCount > 0) {
+            const syncBtn = document.getElementById('btn-sync-orders');
+            if (syncBtn) {
+                syncBtn.textContent = `🔄 Process Orders (${pendingCount})`;
+                syncBtn.classList.add('pulse');
+            }
+        }
+    } catch (e) {
+        console.error('Failed to check pending orders:', e);
+    }
+}
+
+// Process website orders
+function processWebsiteOrders() {
+    if (!window.MerakiInventorySync) {
+        showToast('Inventory sync module not loaded', 'error');
+        return;
+    }
+    
+    const results = window.MerakiInventorySync.processPendingOrders();
+    
+    if (results.length === 0) {
+        showToast('No pending orders to process', 'info');
+        return;
+    }
+    
+    // Show results
+    let successCount = 0;
+    let errorCount = 0;
+    let totalDeductions = 0;
+    
+    results.forEach(result => {
+        if (result.success) {
+            successCount++;
+        } else {
+            errorCount++;
+        }
+        totalDeductions += result.deductions.length;
+    });
+    
+    const message = `Processed ${results.length} order(s): ${successCount} successful, ${errorCount} with warnings. ${totalDeductions} ingredient(s) deducted.`;
+    showToast(message, errorCount > 0 ? 'warning' : 'success');
+    
+    // Reset button
+    const syncBtn = document.getElementById('btn-sync-orders');
+    if (syncBtn) {
+        syncBtn.textContent = '🔄 Process Website Orders';
+        syncBtn.classList.remove('pulse');
+    }
+    
+    // Show detailed results in console
+    console.log('Order processing results:', results);
+    
+    // Show modal with details
+    showOrderProcessingResults(results);
+}
+
+// Show order processing results modal
+function showOrderProcessingResults(results) {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px);';
+    
+    const content = document.createElement('div');
+    content.style.cssText = 'background:white;border-radius:16px;padding:0;max-width:700px;max-height:85vh;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+    
+    let html = `
+        <div style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);padding:2rem;color:white;">
+            <h2 style="margin:0;font-size:1.75rem;font-weight:600;">📦 Order Processing Results</h2>
+            <p style="margin:0.5rem 0 0 0;opacity:0.9;font-size:0.95rem;">${results.length} order${results.length !== 1 ? 's' : ''} processed successfully</p>
+        </div>
+        <div style="padding:1.5rem;max-height:60vh;overflow-y:auto;">
+    `;
+    
+    results.forEach((result, index) => {
+        const successColor = result.success ? '#10b981' : '#f59e0b';
+        const bgColor = result.success ? '#ecfdf5' : '#fffbeb';
+        const borderColor = result.success ? '#d1fae5' : '#fef3c7';
+        
+        html += `
+            <div style="margin-bottom:1.25rem;border-radius:12px;overflow:hidden;border:2px solid ${borderColor};background:${bgColor};box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                <div style="padding:1rem;background:${successColor};color:white;display:flex;align-items:center;gap:0.75rem;">
+                    <div style="font-size:1.5rem;">${result.success ? '✅' : '⚠️'}</div>
+                    <div style="flex:1;">
+                        <div style="font-weight:600;font-size:0.95rem;">Order ${result.orderId}</div>
+                        <div style="font-size:0.85rem;opacity:0.95;margin-top:0.25rem;">${result.deductions.length} ingredient${result.deductions.length !== 1 ? 's' : ''} deducted</div>
+                    </div>
+                </div>
+                
+                <div style="padding:1.25rem;">
+                    <div style="font-weight:600;color:#374151;margin-bottom:0.75rem;font-size:0.9rem;">📊 Stock Deductions:</div>
+                    <div style="display:grid;gap:0.75rem;">
+                        ${result.deductions.map(d => {
+                            const stockPercent = Math.min(100, (d.newStock / 50) * 100);
+                            const barColor = stockPercent > 40 ? '#10b981' : stockPercent > 20 ? '#f59e0b' : '#ef4444';
+                            return `
+                                <div style="background:white;padding:0.875rem;border-radius:8px;border:1px solid #e5e7eb;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                                        <span style="font-weight:500;color:#1f2937;font-size:0.9rem;">${d.name}</span>
+                                        <span style="background:#f3f4f6;padding:0.25rem 0.625rem;border-radius:6px;font-size:0.8rem;font-weight:600;color:#6b7280;">
+                                            ${d.ingredient.unit || 'units'}
+                                        </span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">
+                                        <span style="color:#ef4444;font-weight:600;font-size:0.85rem;">−${Math.round(d.deducted)}</span>
+                                        <div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+                                            <div style="height:100%;background:${barColor};width:${stockPercent}%;transition:width 0.3s ease;"></div>
+                                        </div>
+                                        <span style="color:#10b981;font-weight:600;font-size:0.85rem;">${Math.round(d.newStock)}</span>
+                                    </div>
+                                    <div style="font-size:0.75rem;color:#6b7280;text-align:center;">
+                                        Stock: ${Math.round(d.newStock)} ${d.ingredient.unit || 'units'} remaining
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    
+                    ${result.errors && result.errors.length > 0 ? `
+                        <div style="margin-top:1rem;padding:0.875rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;">
+                            <div style="font-weight:600;color:#dc2626;margin-bottom:0.5rem;font-size:0.85rem;">⚠️ Warnings:</div>
+                            <ul style="margin:0;padding-left:1.25rem;color:#991b1b;font-size:0.85rem;">
+                                ${result.errors.map(e => `<li style="margin:0.25rem 0;">${e}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+        </div>
+        <div style="padding:1.5rem;background:#f9fafb;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;">
+            <button id="close-results-modal" class="btn btn-primary" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);border:none;padding:0.75rem 2rem;border-radius:8px;font-weight:600;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;box-shadow:0 4px 12px rgba(102,126,234,0.4);">
+                Close
+            </button>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    const closeBtn = document.getElementById('close-results-modal');
+    closeBtn.addEventListener('mouseenter', () => {
+        closeBtn.style.transform = 'translateY(-2px)';
+        closeBtn.style.boxShadow = '0 6px 16px rgba(102,126,234,0.5)';
+    });
+    closeBtn.addEventListener('mouseleave', () => {
+        closeBtn.style.transform = 'translateY(0)';
+        closeBtn.style.boxShadow = '0 4px 12px rgba(102,126,234,0.4)';
+    });
+    closeBtn.addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+}
+
+// Show ingredients inventory modal
+function showIngredientsModal() {
+    if (!window.MerakiInventorySync) {
+        showToast('Inventory sync module not loaded', 'error');
+        return;
+    }
+    
+    const ingredients = window.MerakiInventorySync.getIngredientsInventory();
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    
+    const content = document.createElement('div');
+    content.style.cssText = 'background:white;border-radius:12px;padding:2rem;max-width:800px;max-height:80vh;overflow-y:auto;';
+    
+    let html = '<h2>Ingredients Inventory</h2>';
+    html += '<div style="margin-top: 1rem;">';
+    
+    Object.entries(ingredients).forEach(([key, item]) => {
+        const stockPercent = (item.stock / (item.lowStockThreshold * 3)) * 100;
+        const stockColor = item.stock <= item.lowStockThreshold ? '#dc3545' : 
+                          item.stock <= item.lowStockThreshold * 2 ? '#ffc107' : '#28a745';
+        
+        html += `
+            <div style="margin: 0.75rem 0; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>${item.name}</strong>
+                    <div style="font-size: 0.9rem; color: #666;">${key}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-weight: 600; color: ${stockColor};">
+                        ${item.stock.toFixed(2)} ${item.unit}
+                    </div>
+                    <div style="font-size: 0.85rem; color: #666;">
+                        Low: ${item.lowStockThreshold} ${item.unit}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    html += '<button id="close-ingredients-modal" class="btn btn-primary" style="margin-top: 1rem;">Close</button>';
+    
+    content.innerHTML = html;
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    document.getElementById('close-ingredients-modal').addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+}
+
+// Enhanced showToast with type support
+function showToast(message, type = 'success') {
+    const colors = {
+        success: '#28a745',
+        error: '#dc3545',
+        warning: '#ffc107',
+        info: '#17a2b8'
+    };
+    
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    toast.style.position = 'fixed';
+    toast.style.bottom = '2rem';
+    toast.style.right = '2rem';
+    toast.style.background = colors[type] || colors.success;
+    toast.style.color = type === 'warning' ? '#000' : '#fff';
+    toast.style.padding = '1rem 1.5rem';
+    toast.style.borderRadius = '8px';
+    toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    toast.style.zIndex = '10000';
+    toast.style.fontWeight = '500';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
 }

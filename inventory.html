@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Management - Meraki Sipside</title>
+    <title>Ingredients Inventory - Meraki Sipside</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="../WebSite/meraki-sipside/src/scripts/recipes.js"></script>
+    <script src="inventory-sync.js"></script>
     <script src="inventory.js" defer></script>
 </head>
 <body>
@@ -12,7 +14,7 @@
         <div class="header-container">
             <div class="logo">
                 <img src="meraki.png" alt="Meraki Sipside logo" class="logo-mark" />
-                <h1>Meraki Sipside - Inventory</h1>
+                <h1>Meraki Sipside - Ingredients Inventory</h1>
             </div>
             <nav>
                 <a href="index.html" class="nav-link">Home</a>
@@ -31,7 +33,7 @@
                     <div class="card-icon">📦</div>
                     <div class="card-content">
                         <h3 id="total-products">0</h3>
-                        <p>Total Products</p>
+                        <p>Total Ingredients</p>
                     </div>
                 </div>
                 <div class="dashboard-card">
@@ -61,7 +63,8 @@
         <!-- Controls Section -->
         <section class="controls">
             <div class="controls-left">
-                <button id="btn-add-product" class="btn btn-primary">➕ Add New Product</button>
+                <button id="btn-add-ingredient" class="btn btn-primary">➕ Add New Ingredient</button>
+                <button id="btn-sync-orders" class="btn btn-success">🔄 Process Website Orders</button>
                 <button id="btn-export-data" class="btn btn-secondary">📥 Export Data</button>
                 <button id="btn-import-data" class="btn btn-secondary">📤 Import Data</button>
             </div>
@@ -69,14 +72,13 @@
                 <input type="text" id="search-inventory" placeholder="🔍 Search products..." class="search-input">
                 <select id="filter-category" class="filter-select">
                     <option value="all">All Categories</option>
-                    <option value="Milktea">Milktea</option>
-                    <option value="Iced Coffee">Iced Coffee</option>
-                    <option value="Cheesecake">Cheesecake</option>
-                    <option value="Fruit Tea">Fruit Tea</option>
-                    <option value="Soda">Soda</option>
-                    <option value="Frappe">Frappe</option>
-                    <option value="Snacks">Snacks</option>
-                    <option value="Fries">Fries</option>
+                    <option value="Bases">Bases</option>
+                    <option value="Powders">Powders</option>
+                    <option value="Syrups">Syrups</option>
+                    <option value="Dairy">Dairy & Liquids</option>
+                    <option value="Toppings">Toppings & Add-ons</option>
+                    <option value="Fresh">Fresh Items</option>
+                    <option value="Snack Ingredients">Snack Ingredients</option>
                 </select>
                 <select id="filter-stock" class="filter-select">
                     <option value="all">All Stock Levels</option>
@@ -89,7 +91,7 @@
 
         <!-- Inventory Table Section -->
         <section class="inventory-section">
-            <h2>Product Inventory</h2>
+            <h2>Ingredients Inventory</h2>
 
             <!-- Stock Alert Section -->
             <section class="alerts-section">
@@ -104,12 +106,12 @@
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Product Name</th>
+                            <th>Ingredient Name</th>
                             <th>Category</th>
-                            <th>Ingredient Cost</th>
+                            <th>Unit</th>
                             <th>Stock</th>
+                            <th>Low Stock Alert</th>
                             <th>Status</th>
-                            <th>Last Updated</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -131,48 +133,28 @@
                     <input type="hidden" id="form-product-id">
                     
                     <div class="form-group">
-                        <label for="form-product-name">Product Name *</label>
-                        <input type="text" id="form-product-name" required placeholder="e.g., Bubble Tea">
+                        <label for="form-product-name">Ingredient Name *</label>
+                        <input type="text" id="form-product-name" required placeholder="e.g., Chocolate Powder">
                     </div>
 
                     <div class="form-group">
-                        <label for="form-product-category">Category *</label>
-                        <select id="form-product-category" required>
-                            <option value="">Select Category</option>
-                            <option value="Milktea">Milktea</option>
-                            <option value="Iced Coffee">Iced Coffee</option>
-                            <option value="Cheesecake">Cheesecake</option>
-                            <option value="Fruit Tea">Fruit Tea</option>
-                            <option value="Soda">Soda</option>
-                            <option value="Frappe">Frappe</option>
-                            <option value="Snacks">Snacks</option>
-                            <option value="Fries">Fries</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="form-product-description">Description</label>
-                        <textarea id="form-product-description" rows="3" placeholder="Product description..."></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="form-product-price">Ingredient Cost (₱) *</label>
-                        <input type="number" id="form-product-price" min="0" step="0.01" required placeholder="49.00">
+                        <label for="form-product-unit">Unit *</label>
+                        <input type="text" id="form-product-unit" required placeholder="e.g., kg, liters, servings">
                     </div>
 
                     <div class="form-group">
                         <label for="form-product-stock">Stock Quantity *</label>
-                        <input type="number" id="form-product-stock" min="0" required placeholder="100">
+                        <input type="number" id="form-product-stock" min="0" step="1" required placeholder="50">
                     </div>
 
                     <div class="form-group">
-                        <label for="form-product-low-stock">Low Stock Threshold</label>
-                        <input type="number" id="form-product-low-stock" min="0" value="10" placeholder="10">
+                        <label for="form-product-low-stock">Low Stock Threshold *</label>
+                        <input type="number" id="form-product-low-stock" min="0" step="1" value="20" required placeholder="20">
                     </div>
 
                     <div class="form-actions">
                         <button type="button" class="btn btn-secondary" id="btn-cancel-form">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save Product</button>
+                        <button type="submit" class="btn btn-primary">Save Ingredient</button>
                     </div>
                 </form>
             </div>

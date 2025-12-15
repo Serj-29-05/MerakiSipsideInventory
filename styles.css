@@ -933,3 +933,35 @@ footer {
         page-break-inside: avoid;
     }
 }
+
+/* Order Sync Button Styles */
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #218838;
+}
+
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #138496;
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+    }
+}
